@@ -1,6 +1,6 @@
 #!/bin/bash
 filename=$1
-file=$(cat $1)
+content=$(cat $1)
 max_lines=$(wc -l < $1)
 row=0
 col=0
@@ -27,8 +27,8 @@ function render() {
     lastcolor=0
     
     clear
-    cat $filename |
-    sed -e $(($row+1))"s/./█/$(($col+1))" | 
+    echo "$content" |
+    sed -e $(($row+1))"s/./$(printf "\\033[30;47m")&$(tput sgr0)/$(($col+1))" | 
     highlight -O ansi --force --syntax-by-name=$filename | 
     nl | 
     sed -e $(($row+1))"s/./$col/" |
@@ -50,23 +50,17 @@ do
     then
         case $key in
         k)
-            row=$(($row-1))
-            ;;
+            row=$(($row-1)) ;;
         j)
-            row=$(($row+1))
-            ;;
+            row=$(($row+1)) ;;
         h)
-            col=$(($col-1))
-            ;;
+            col=$(($col-1)) ;;
         l)
-            col=$(($col+1))
-            ;;
+            col=$(($col+1)) ;;
         i)
-            show_lines=$((!$show_lines))
-            ;;
+            show_lines=$((!$show_lines)) ;;
         q)
-            exit 0
-            ;;
+            exit 0 ;;
         esac
     else
         case $key in
@@ -80,8 +74,9 @@ do
         esac
     fi
     render
-    status "$filename" 42
-    status "$(($row))x$col" 45
-    status "Key $key " 46
+    status "\uf115 $filename" 42
+    status "\ue0a0 $(git branch)" 44
+    status "\ufae6 $(($row))x$col" 45
+    status "\uf80b Key $key " 46
     status " " 1
 done
