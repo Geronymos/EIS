@@ -23,17 +23,36 @@ lastcolor=0
 # Cyan    36  46
 # White   37  47
 
+# git diff --unified=0 
+# echo "tefoost hefoollo " | grep -Po '(foo)+(?!.*(foo)+)'   
+
+colchar="\x1B\[[0-9;]*[a-zA-Z]"
+
 function render() {
     lastcolor=0
     
+
     clear
-    echo "$content" |
-    sed -e $(($row+1))"s/./$(printf "\\033[30;47m")&$(tput sgr0)/$(($col+1))" | 
-    highlight -O ansi --force --syntax-by-name=$filename | 
+    highlighted=$(echo "$content" | highlight -O ansi --force --syntax-by-name=$filename)
+    lasthighlight=$(
+        echo "$highlighted" | 
+        sed "$((row+1))q;d" |                                   # get row line
+        sed "s/^\(\(\($colchar\)*.\)\{$(($col+1))\}\).*/\1/" |       # get string up to col
+        grep -Po '(\x1B\[[0-9;]*[a-zA-Z])(?!.*(\x1B\[[0-9;]*[a-zA-Z]))'                            # get last occurance of color
+    )
+
+    echo "$highlighted" | 
+    sed -e "s/^\($colchar\)*$/ /" | # fill empty line with space so cursor was something to grab to
+    # place cursor (replace col char with optional color at row with itself reversed, ended with reset and original highlight)
+    sed -e "$(($row+1))s/\($colchar\)*\(.\)/$lasthighlight$(tput rev)\2$(tput sgr0)$lasthighlight/$(($col+1))" |  
     nl | 
     sed -e $(($row+1))"s/./$col/" |
     head -$(($row+$height/2)) |
-    tail -$(($height))
+    tail -$(($height)) | 
+    # sed "s/\(\x1B\[\)\([0-9;]*[a-zA-Z]\)/\1\2$(tput smul)\2$(tput rmul)/g" | # debug color
+    cat
+
+    echo "$lasthighlight hello"
 }
 
 function status() {
@@ -46,7 +65,7 @@ while read -d'' -s -n1 key
 do
     width=$(tput cols)
     height=$(($(tput lines)-3))
-    if ($normal_mode);
+    if (($normal_mode == 1))
     then
         case $key in
         k)
@@ -58,14 +77,14 @@ do
         l)
             col=$(($col+1)) ;;
         i)
-            show_lines=$((!$show_lines)) ;;
+            normal_mode=!$normal_mode ;;
         q)
             exit 0 ;;
         esac
     else
         case $key in
-        i)
-            normal_mode=true
+        ^)
+            normal_mode=1
             cmd=""
             ;;
         *)
@@ -76,6 +95,7 @@ do
     render
     status "\uf115 $filename" 42
     status "\ue0a0 $(git branch)" 44
+    status "$((($normal_mode == 1)) && printf NORMAL || printf INSERT)" "$((($normal_mode == 1)) && printf 41 || printf 40)"
     status "\ufae6 $(($row))x$col" 45
     status "\uf80b Key $key " 46
     status " " 1
