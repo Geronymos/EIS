@@ -1,7 +1,7 @@
 #!/bin/bash
 filename=$1
-content=$(cat $1)
-max_lines=$(wc -l < $1)
+content=$(cat "$1")
+max_lines=$(wc -l < "$1")
 row=0
 col=0
 show_lines=false
@@ -33,7 +33,7 @@ function render() {
     
 
     clear
-    highlighted=$(echo "$content" | highlight -O ansi --force --syntax-by-name=$filename)
+    highlighted=$(echo "$content" | highlight -O ansi --force --syntax-by-name="$filename")
     lasthighlight=$(
         echo "$highlighted" | 
         sed "$((row+1))q;d" |                                   # get row line
@@ -42,7 +42,7 @@ function render() {
     )
 
     echo "$highlighted" | 
-    sed -e "s/^\($colchar\)*$/ /" | # fill empty line with space so cursor was something to grab to
+    sed -e "s/$/ /" | # fill empty line with space so cursor was something to grab to
     # place cursor (replace col char with optional color at row with itself reversed, ended with reset and original highlight)
     sed -e "$(($row+1))s/\($colchar\)*\(.\)/$lasthighlight$(tput rev)\2$(tput sgr0)$lasthighlight/$(($col+1))" |  
     nl | 
@@ -51,8 +51,6 @@ function render() {
     tail -$(($height)) | 
     # sed "s/\(\x1B\[\)\([0-9;]*[a-zA-Z]\)/\1\2$(tput smul)\2$(tput rmul)/g" | # debug color
     cat
-
-    echo "$lasthighlight hello"
 }
 
 function status() {
@@ -61,34 +59,63 @@ function status() {
     lastcolor=$2
 }
 
-while read -d'' -s -n1 key
+# from https://stackoverflow.com/questions/10679188/casing-arrow-keys-in-bash#11759139
+while read -sN1 key
 do
+    read -sN1 -t 0.0001 k1
+    read -sN1 -t 0.0001 k2
+    read -sN1 -t 0.0001 k3
+    key+=${k1}${k2}${k3}
+
     width=$(tput cols)
     height=$(($(tput lines)-3))
     if (($normal_mode == 1))
     then
         case $key in
-        k)
-            row=$(($row-1)) ;;
-        j)
-            row=$(($row+1)) ;;
-        h)
+        # vim or arrow keys
+        h|$'\E[D')
             col=$(($col-1)) ;;
-        l)
+        j|$'\E[B'|$'\n')
+            row=$(($row+1)) ;;
+        k|$'\E[A')
+            row=$(($row-1)) ;;
+        l|$'\E[C')
             col=$(($col+1)) ;;
         i)
             normal_mode=!$normal_mode ;;
+        w)
+            echo "$content" > "$filename" ;;
         q)
             exit 0 ;;
         esac
     else
         case $key in
-        ^)
-            normal_mode=1
-            cmd=""
+        $'\E') # esc
+            normal_mode=1 ;;
+        # arrow keys
+        $'\E[D')
+            col=$(($col-1)) ;;
+        $'\E[B')
+            row=$(($row+1)) ;;
+        $'\E[A')
+            row=$(($row-1)) ;;
+        $'\E[C')
+            col=$(($col+1)) ;;
+        $'\n') # enter
+            content=$(echo "$content" | sed "$(($row+1))s/./&\n/$(($col))")
+            row=$(($row+1))
+            col=0
+            ;;
+        $'\E[3~') # delete
+            content=$(echo "$content" | sed "$(($row+1))s/\(.\{$(($col))\}\).\(.*\)/\1\2/")
+            ;;
+        $'\177') # backspace
+            content=$(echo "$content" | sed "$(($row+1))s/\(.\{$(($col-1))\}\).\(.*\)/\1\2/")
+            col=$(($col-1))
             ;;
         *)
-            cmd+=$key
+            content=$(echo "$content" | sed "$(($row+1))s/.\{$(($col))\}/&$key/")
+            col=$(($col+1))
             ;;
         esac
     fi
@@ -97,6 +124,6 @@ do
     status "\ue0a0 $(git branch)" 44
     status "$((($normal_mode == 1)) && printf NORMAL || printf INSERT)" "$((($normal_mode == 1)) && printf 41 || printf 40)"
     status "\ufae6 $(($row))x$col" 45
-    status "\uf80b Key $key " 46
+    status "\uf80b Key $(echo $key | sed "s/\($(echo $'\E')\)\?\($(echo $'^')\)\?//")" 46
     status " " 1
 done
