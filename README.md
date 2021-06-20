@@ -13,8 +13,8 @@ You may ask `"Why a NEW editor? Why shell script? Isn't that unperformant and ne
 - [X] Syntax highlighting 🌈
 - [X] status line
 - [X] edit and save 📝
-- [ ] select text
-- [ ] modify text with shell commands
+- [X] select text
+- [X] modify text with shell commands
 - [ ] language server protocol implementation
 - [ ] complete git integration
 
