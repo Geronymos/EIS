@@ -9,6 +9,7 @@ selection=""
 from_row=0
 from_col=0
 show_lines=false
+rcol=0
 cmd=""
 # modes: 0 normal 1 cmd 2 insert 3 visual 
 mode=0
@@ -32,28 +33,33 @@ lastcolor=0
 # echo "tefoost hefoollo " | grep -Po '(foo)+(?!.*(foo)+)'  
 # echo $(which highlight>/dev/null && echo hi) 
 
-colchar="\x1B\[[0-9;]*[a-zA-Z]"
+source ./text_manipulation.sh
 
 function render() {
     lastcolor=0
     
+    width=$(tput cols)
+    height=$(($(tput lines)-3))
 
-    clear
-    highlighted=$(echo "$content" | highlight -O ansi --force --syntax-by-name="$filename")
     lasthighlight=$(
-        echo "$highlighted" | 
-        sed "$((row+1))q;d" |                                   # get row line
+        echo "$text" | 
+        sed "$(($row+1))q;d" |                                   # get row line
         sed "s/^\(\(\($colchar\)*.\)\{$(($col+1))\}\).*/\1/" |       # get string up to col
         grep -Po '(\x1B\[[0-9;]*[a-zA-Z])(?!.*(\x1B\[[0-9;]*[a-zA-Z]))'                            # get last occurance of color
     )
 
-    echo "$highlighted" | 
-    sed -e "s/$/ /" | # fill empty line with space so cursor was something to grab to
+    clear
+    
+    echo "$content" | highlight -O ansi --force --syntax-by-name="$filename" | 
+    sed -z "s/\n\($colchar*\n\)/\n \1/" | # fill empty line with space so cursor was something to grab to
+    # sed -e "$(($row+1))s/$colchar*\(.\)/$lasthighlight$(tput rev)\2$(tput sgr0)$lasthighlight/$(($col+1))" |  
+    ( (( $mode < 3 )) && hl_at $row $col $row $((col+1)) || cat ) |
+    ( (( $mode == 3 )) && hl_at $from_row $from_col $row $col || cat ) | 
+    # hl_at $from_row $from_col $row $col |
     # place cursor (replace col char with optional color at row with itself reversed, ended with reset and original highlight)
-    sed -e "$(($row+1))s/\($colchar\)*\(.\)/$lasthighlight$(tput rev)\2$(tput sgr0)$lasthighlight/$(($col+1))" |  
     nl | 
     sed -e $(($row+1))"s/./$col/" |
-    head -$(($row+$height/2)) |
+    head -$(($row+($height/2))) |
     tail -$(($height)) | 
     # sed "s/\(\x1B\[\)\([0-9;]*[a-zA-Z]\)/\1\2$(tput smul)\2$(tput rmul)/g" | # debug color
     cat
@@ -158,7 +164,7 @@ function keymap() {
         ;;
     esac
 }
-
+render
 # from https://stackoverflow.com/questions/10679188/casing-arrow-keys-in-bash#11759139
 while read -sN1 key
 do
@@ -166,9 +172,6 @@ do
     read -sN1 -t 0.0001 k2
     read -sN1 -t 0.0001 k3
     key+=${k1}${k2}${k3}
-
-    width=$(tput cols)
-    height=$(($(tput lines)-3))
 
     keymap "$key"
 
@@ -180,10 +183,13 @@ do
         status "NORMAL" 41 ;;
     2)
         status "INSERT" 40 ;;
+    3)
+        status "VISUAL" 42 ;;
     esac
     status "\ufae6 $(($row))x$col" 45
     status "\uf80b Key $(echo $key | sed "s/\($(echo $'\E')\)\?\($(echo $'^')\)\?//")" 46
     status " " 1
-    echo "$modification"
-    echo "$selection"
+    # echo "$modification"
+    # echo "$selection"
+    # echo "$selection_hl"
 done
