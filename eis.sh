@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 filename=$1
 content=$(cat "$1")
 max_lines=$(wc -l < "$1")
@@ -15,25 +15,15 @@ cmd=""
 mode=0
 lastcolor=0
 
-# echo "\ue0b0 \u00b1 \ue0a0 \u27a6 \u2718 \u26a1 \u2699"
-#       >       +-      branch ->       x   ⚡      ⚙ 
-
-# Color   FG  BG
-# -------+---+---
-# Black   30  40  
-# Red     31  41
-# Green   32  42
-# Yellow  33  43
-# Blue    34  44
-# Megenta 35  45
-# Cyan    36  46
-# White   37  47
+# Black|Red|Green|Yellow|Blue|Magenta|Cyan|White
+# 40   |41 |42   |43    |44  |45     |46  |47
 
 # git diff --unified=0 
 # echo "tefoost hefoollo " | grep -Po '(foo)+(?!.*(foo)+)'  
 # echo $(which highlight>/dev/null && echo hi) 
 
 source ./text_manipulation.sh
+source ./user_input.sh
 
 function render() {
     lastcolor=0
@@ -41,23 +31,13 @@ function render() {
     width=$(tput cols)
     height=$(($(tput lines)-3))
 
-    lasthighlight=$(
-        echo "$text" | 
-        sed "$(($row+1))q;d" |                                   # get row line
-        sed "s/^\(\(\($colchar\)*.\)\{$(($col+1))\}\).*/\1/" |       # get string up to col
-        grep -Po '(\x1B\[[0-9;]*[a-zA-Z])(?!.*(\x1B\[[0-9;]*[a-zA-Z]))'                            # get last occurance of color
-    )
-
     clear
     
     echo "$content" | highlight -O ansi --force --syntax-by-name="$filename" | 
-    sed -z "s/\n\($colchar*\n\)/\n \1/" | # fill empty line with space so cursor was something to grab to
-    # sed -e "$(($row+1))s/$colchar*\(.\)/$lasthighlight$(tput rev)\2$(tput sgr0)$lasthighlight/$(($col+1))" |  
+    sed -z "s/\n\($colchar*\n\)/\n \1/g" | # fill empty line with space so cursor was something to grab to
     ( (( $mode < 3 )) && hl_at $row $col $row $((col+1)) || cat ) |
     ( (( $mode == 3 )) && hl_at $from_row $from_col $row $col || cat ) | 
-    # hl_at $from_row $from_col $row $col |
-    # place cursor (replace col char with optional color at row with itself reversed, ended with reset and original highlight)
-    nl | 
+    nl -v0 | 
     sed -e $(($row+1))"s/./$col/" |
     head -$(($row+($height/2))) |
     tail -$(($height)) | 
@@ -71,99 +51,7 @@ function status() {
     lastcolor=$2
 }
 
-function keymap() {
-    key="$1"
 
-    # esc to normal mode
-    [ $key == $'\E' ] && mode=0
-    case $mode in 
-    0) # normal mode
-        case $key in
-        # vim or arrow keys
-        h|$'\E[D')
-            col=$(($col-1)) ;;
-        j|$'\E[B'|$'\n')
-            row=$(($row+1)) ;;
-        k|$'\E[A')
-            row=$(($row-1)) ;;
-        l|$'\E[C')
-            col=$(($col+1)) ;;
-        i)
-            mode=2 ;;
-        v)
-            from_col=$col
-            from_row=$row
-            mode=3 ;;
-        :)
-            mode=1 ;;
-        w)
-            echo "$content" > "$filename" ;;
-        q)
-            exit 0 ;;
-        esac ;;
-    2) # insert mode
-        case $key in
-        # arrow keys
-        $'\E[D')
-            col=$(($col-1)) ;;
-        $'\E[B')
-            row=$(($row+1)) ;;
-        $'\E[A')
-            row=$(($row-1)) ;;
-        $'\E[C')
-            col=$(($col+1)) ;;
-        $'\n') # enter
-            content=$(echo "$content" | sed "$(($row+1))s/./&\n/$(($col))")
-            row=$(($row+1))
-            col=0
-            ;;
-        $'\E[3~') # delete
-            content=$(echo "$content" | sed "$(($row+1))s/\(.\{$(($col))\}\).\(.*\)/\1\2/")
-            ;;
-        $'\177') # backspace
-            content=$(echo "$content" | sed "$(($row+1))s/\(.\{$(($col-1))\}\).\(.*\)/\1\2/")
-            col=$(($col-1))
-            ;;
-        *)
-            content=$(echo "$content" | sed "$(($row+1))s/.\{$(($col))\}/&$key/")
-            col=$(($col+1))
-            ;;
-        esac ;;
-    3) # visual mode
-        case $key in
-        # vim or arrow keys
-        h|$'\E[D')
-            col=$(($col-1)) ;;
-        j|$'\E[B'|$'\n')
-            row=$(($row+1)) ;;
-        k|$'\E[A')
-            row=$(($row-1)) ;;
-        l|$'\E[C')
-            col=$(($col+1)) ;;
-        :)
-            # mode=1 
-            echo "Rcol $rcol"
-            read -p "$(printf "\e[36m\ue0b1\e[m :")" cmd
-            modification=$(echo "$selection" | sh -c "$cmd")
-            echo "$modification"
-            # escape charapters that would be mistaken by sed https://stackoverflow.com/questions/29613304/is-it-possible-to-escape-regex-metacharacters-reliably-with-sed
-            IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$modification")
-            replaceEscaped=${REPLY%$'\n'}
-            # content=$(sed ':a;N;$!ba;'"s/\(.*\n\)\{$(($from_row +1))\}.\{$from_col\}\(\(.*\n\)\{$(($row + 1))\}.\{$col\}\)/\3/g")
-            content=$( echo "$content" | sed -z "s/\(\([^\n]*\n\)\{$(($from_row))\}.\{$from_col\}\)\(\([^\n]*\n\)\{$(($row - $from_row))\}.\{$rcol\}\)\(.*\)/\1$replaceEscaped\5/" )
-            ;;
-        esac
-        # selection=$(echo "$content" | sed -n "$(($from_row+1)),$(($row+1))p" | sed -e "1s/.\{$from_col\}//;$(($row - $from_row +1))s/\(.\{$col\}\).*/\1/")
-        # cat tests/test.txt | sed ':a;N;$!ba;'"s/\(.*\n\)\{1\}.\{2\}\(\(.*\n\)\{1\}.\{1\}\)/\3/"
-        # selection=$(echo "$content" | sed ':a;N;$!ba;'"s/\(.*\n\)\{$(($from_row +1))\}.\{$from_col\}\(\(.*\n\)\{$(($row + 1))\}.\{$col\}\)/\3/g")
-        # selection=$(echo "$content" | sed -n "$(($from_row+1)),$(($row +1))p" | sed -z "s/.\{$from_col\}\(\(.*\)\n.\{$col\}\).*/\1/")
-
-        # sed -z "s/\(\([^\n]*\n\)\{$from_row\}.\{$from_col\}\)\(\([^\n]*\n\)\{$rrow\}.\{$rcol\}\)\(.*\)/\3/" # \3 for match, \1text\5 for replace
-        [ $from_row == $row ] && rcol=$(($col - $from_col)) || rcol=$col
-        selection=$(echo "$content" | sed -z "s/\(\([^\n]*\n\)\{$(($from_row))\}.\{$from_col\}\)\(\([^\n]*\n\)\{$(($row - $from_row))\}.\{$rcol\}\)\(.*\)/\3/" )
-        ;;
-    esac
-}
 render
 # from https://stackoverflow.com/questions/10679188/casing-arrow-keys-in-bash#11759139
 while read -sN1 key
