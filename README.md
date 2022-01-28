@@ -31,14 +31,13 @@ bash install.sh
 ## Usage 
 
 ```
-eis [File]
+$ eis [File]
 ```
 
 ### Key map ⌨
 *For more information start by learning vim (with vimtutor)*
 - normal, insert, visual, command: `esc,i,v,:`
 - movement: `h,j,k,l` / `arrow keys/enter` 
-
 ## Inspiration ✨
 
 - [Vim](https://www.vim.org/) / [neovim](https://neovim.io/) - *text editor*
@@ -48,6 +47,7 @@ eis [File]
 ## Authors
 
 - **Gero Beckmann** - *Initial work* - [Geronymos](https://github.com/Geronymos)
+- **Matheus Bione** - *Contributor* - [matheus1760](https://github.com/matheus1760)
 
 ## License
 
