@@ -18,17 +18,26 @@ You may ask `"Why a NEW editor? Why shell script? Isn't that unperformant and ne
 - [ ] language server protocol implementation
 - [ ] complete git integration
 
+## Instalation
+Firstly clone the repository:
+```
+git clone https://github.com/matheus1760/EIS.git
+```
+then install it running the install.sh script in the same directory:
+```
+bash install.sh
+```
+
 ## Usage 
 
-```sh
-./eis.sh [File]
+```
+$ eis [File]
 ```
 
 ### Key map ⌨
 *For more information start by learning vim (with vimtutor)*
 - normal, insert, visual, command: `esc,i,v,:`
 - movement: `h,j,k,l` / `arrow keys/enter` 
-
 ## Inspiration ✨
 
 - [Vim](https://www.vim.org/) / [neovim](https://neovim.io/) - *text editor*
@@ -38,7 +47,8 @@ You may ask `"Why a NEW editor? Why shell script? Isn't that unperformant and ne
 ## Authors
 
 - **Gero Beckmann** - *Initial work* - [Geronymos](https://github.com/Geronymos)
+- **Matheus Bione** - *Contributor* - [matheus1760](https://github.com/matheus1760)
 
 ## License
 
-This project is licensed under the GPT-3 License - see the `LICENSE` file for details
+This project is licensed under the GPL-3.0 License - see the `LICENSE` file for details
