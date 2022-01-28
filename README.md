@@ -18,10 +18,20 @@ You may ask `"Why a NEW editor? Why shell script? Isn't that unperformant and ne
 - [ ] language server protocol implementation
 - [ ] complete git integration
 
+## Instalation
+Firstly clone the repository:
+```
+git clone https://github.com/matheus1760/EIS.git
+```
+then install it running the install.sh script in the same directory:
+```
+bash install.sh
+```
+
 ## Usage 
 
-```sh
-./eis.sh [File]
+```
+eis [File]
 ```
 
 ### Key map ⌨
